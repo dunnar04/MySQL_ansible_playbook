@@ -1,0 +1,53 @@
+---
+- name: Install MySQL, Create database & User, Backup, Replicate and Configure Security
+  hosts: all
+  vars_files:
+    - vars.yml #include vars files here
+
+
+  tasks:
+    - name: Start installation of MySQL
+      yum:
+        name: mysql-server
+        state: present
+      tags: install  
+
+    - name: Create a database
+      mysql_db:
+        name: my_database
+        state: present
+      tags: create_database
+
+
+    - name: Create a database user
+      mysql_user:
+        name: db_user
+        password: secret_password
+        priv: 'my_database.*:ALL'
+        state: present
+      tags: create_user
+
+    - name: Schedule MYSQL backup
+      cron:
+        name: "Daily MYSQL backup"
+        minute: 0
+        hour: 2
+        user: root
+        job: "/user/bin/mysqldump -u root -pPassword my_database > /backups/db_backup.sql"
+      tags: backup
+
+    - name: Configure MYSQL replication
+      mysql_replication:
+        mode: master
+        master_host: "{{ master_host }}"
+        master_user: repl_user
+        master_password: repl_password
+        master_log_file: "{{ master_log_file }}"
+        master_log_pos: "{{ master_log_pos }}"
+      tags: replication
+
+    - name: Secure MySQL installation
+      mysql_secure_installation:
+        login_password: 'root_password'
+        login_host: 'localhost'
+...
